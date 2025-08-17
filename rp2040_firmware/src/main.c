@@ -16,7 +16,7 @@
 #include "lwip/apps/httpd.h"
 
 // Project-specific Headers
-#include "common/protocol.h"
+#include "protocol.h"
 
 // --- Config Struct ---
 typedef struct {
