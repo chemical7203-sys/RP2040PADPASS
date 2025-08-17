@@ -10,7 +10,7 @@
 #include "lwip/init.h"
 #include "lwip/timeouts.h"
 #include "lwip/dhcp.h"
-#include "lwip/dhcpserver.h"
+#include "dhcpserver/dhcpserver.h"
 #include "lwip/etharp.h"
 #include "lwip/netif.h"
 #include "lwip/tcpip.h"
