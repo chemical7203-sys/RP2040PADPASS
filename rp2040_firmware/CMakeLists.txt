@@ -33,8 +33,11 @@ target_link_libraries(ds4_to_gamepad PRIVATE
     pico_lwip
 )
 
-# Add the src directory to the include path for our local headers
-target_include_directories(ds4_to_gamepad PRIVATE src)
+# Add include paths for our local headers and for the lwIP port
+target_include_directories(ds4_to_gamepad PRIVATE
+    src
+    ${PICO_SDK_PATH}/src/rp2_common/pico_lwip/include
+)
 
 # Add compile definitions needed for our configuration
 target_compile_definitions(ds4_to_gamepad PRIVATE
