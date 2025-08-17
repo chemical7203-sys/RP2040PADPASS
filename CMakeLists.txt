@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
-# Find the Pico SDK
-find_package(PicoSDK REQUIRED)
+# Pull in SDK (must be before project)
+include(pico_sdk_import.cmake)
 
 project(rp2040_input_converter LANGUAGES C CXX ASM)
 set(CMAKE_C_STANDARD 11)
