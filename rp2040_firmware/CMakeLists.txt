@@ -27,6 +27,7 @@ add_executable(ds4_to_gamepad
 target_link_libraries(ds4_to_gamepad PRIVATE
     pico_stdlib
     tinyusb_device
+    tinyusb_board
     hardware_uart
     tinyusb_networking
     pico_lwip
