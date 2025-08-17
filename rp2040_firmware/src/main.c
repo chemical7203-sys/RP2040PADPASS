@@ -10,6 +10,7 @@
 #include "lwip/init.h"
 #include "lwip/timeouts.h"
 #include "lwip/dhcp.h"
+#include "lwip/dhcpserver.h"
 #include "lwip/etharp.h"
 #include "lwip/netif.h"
 #include "lwip/tcpip.h"
@@ -225,7 +226,11 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
 
 void net_task(void) { sys_check_timeouts(); }
 err_t netif_init_cb(struct netif *netif) { netif->linkoutput = netif_output_cb; netif->output = etharp_output; netif->mtu = 1500; netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_UP | NETIF_FLAG_ETHERNET; return ERR_OK; }
-err_t netif_output_cb(struct netif *netif, struct pbuf *p) { return tud_network_xmit(p, 0); }
+err_t netif_output_cb(struct netif *netif, struct pbuf *p) {
+    (void)netif;
+    tud_network_xmit(p, 0);
+    return ERR_OK;
+}
 uint16_t tud_network_xmit_cb(uint8_t *dst, void *ref, uint16_t arg) { struct pbuf *p = (struct pbuf *)ref; return pbuf_copy_partial(p, dst, p->tot_len, 0); }
 bool tud_network_recv_cb(const uint8_t *src, uint16_t size) { if (size) { struct pbuf *p = pbuf_alloc(PBUF_RAW, size, PBUF_POOL); if (p) { memcpy(p->payload, src, size); if (netif_data.input(p, &netif_data) != ERR_OK) { pbuf_free(p); } } } return true; }
 void tud_network_mac_address_cb(uint8_t mac_addr[6]) { memcpy(mac_addr, mac_address, 6); }
