@@ -1,24 +1,7 @@
-add_executable(ds4_to_gamepad
-    src/main.c
-    src/usb_descriptors.c
-    src/html/fsdata.c
-)
-
-# Pull in our pico_stdlib which is required
-# Also link the TinyUSB device library, hardware UART, networking and lwIP
-target_link_libraries(ds4_to_gamepad pico_stdlib tinyusb_device hardware_uart tinyusb_networking pico_lwip)
-
-# Add src directory to include path for lwipopts.h
-target_include_directories(ds4_to_gamepad PRIVATE src)
-
-# Define the network interface for TinyUSB
-target_compile_definitions(ds4_to_gamepad PRIVATE
-    TUD_NET_RNDIS=1
-)
+# This file is based on the structure of the official pico-examples
 
 # --- Filesystem Generation ---
 # Add a custom command to run the Python script to convert the HTML to a C file.
-# This command is attached to a custom target so we can make it a dependency.
 set(FSDATA_C ${CMAKE_CURRENT_BINARY_DIR}/fsdata.c)
 add_custom_command(
     OUTPUT ${FSDATA_C}
@@ -28,18 +11,37 @@ add_custom_command(
     COMMENT "Generating ${FSDATA_C} from config.html"
 )
 
-# Add a custom target to execute the command.
 add_custom_target(
     fsdata_generator ALL
     DEPENDS ${FSDATA_C}
 )
 
-# Add the generated file to our executable
-target_sources(ds4_to_gamepad PRIVATE ${FSDATA_C})
+# --- Main Executable Target ---
+add_executable(ds4_to_gamepad
+    src/main.c
+    src/usb_descriptors.c
+    ${FSDATA_C}
+)
 
-# Make sure fsdata is generated before the main executable is built.
+# Link all necessary libraries to the target
+target_link_libraries(ds4_to_gamepad PRIVATE
+    pico_stdlib
+    tinyusb_device
+    hardware_uart
+    tinyusb_networking
+    pico_lwip
+)
+
+# Add the src directory to the include path for our local headers
+target_include_directories(ds4_to_gamepad PRIVATE src)
+
+# Add compile definitions needed for our configuration
+target_compile_definitions(ds4_to_gamepad PRIVATE
+    TUD_NET_RNDIS=1
+)
+
+# Ensure our fsdata file is generated before we try to build the executable
 add_dependencies(ds4_to_gamepad fsdata_generator)
 
-
-# create map/bin/hex/uf2 file etc.
+# Create the .uf2 file and other outputs
 pico_add_extra_outputs(ds4_to_gamepad)
