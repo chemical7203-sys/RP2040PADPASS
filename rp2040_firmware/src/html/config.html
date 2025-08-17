@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamepad Configuration</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f0f0f0; color: #333; max-width: 600px; margin: 20px auto; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #111; }
+        form { display: flex; flex-direction: column; gap: 20px; }
+        fieldset { border: 1px solid #ccc; border-radius: 4px; padding: 15px; }
+        legend { font-weight: bold; }
+        label { display: flex; align-items: center; gap: 10px; }
+        input[type="checkbox"], input[type="radio"] { width: 1.2em; height: 1.2em; }
+        input[type="number"] { width: 60px; padding: 5px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Gamepad Configuration</h1>
+    <form action="/config.cgi" method="post">
+        <fieldset>
+            <legend>Joystick Settings</legend>
+            <label>
+                <input type="checkbox" name="invert_lx" value="1" <!--#inversion_lx-->>
+                Invert Left Stick X-Axis
+            </label>
+            <label>
+                <input type="checkbox" name="invert_ly" value="1" <!--#inversion_ly-->>
+                Invert Left Stick Y-Axis
+            </label>
+            <label>
+                <input type="checkbox" name="invert_rx" value="1" <!--#inversion_rx-->>
+                Invert Right Stick X-Axis
+            </label>
+            <label>
+                <input type="checkbox" name="invert_ry" value="1" <!--#inversion_ry-->>
+                Invert Right Stick Y-Axis
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Trigger Dead Zones</legend>
+            <label>
+                L2 Dead Zone:
+                <input type="number" name="deadzone_l2" min="0" max="255" value="<!--#deadzone_l2-->"> (0-255)
+            </label>
+            <label>
+                R2 Dead Zone:
+                <input type="number" name="deadzone_r2" min="0" max="255" value="<!--#deadzone_r2-->"> (0-255)
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Output Gamepad Type</legend>
+            <label>
+                <input type="radio" name="pad_type" value="ds4" <!--#type_ds4-->>
+                DualShock 4
+            </label>
+            <label>
+                <input type="radio" name="pad_type" value="switch" <!--#type_switch-->>
+                Nintendo Switch Pro Controller
+            </label>
+            <label>
+                <input type="radio" name="pad_type" value="xinput" <!--#type_xinput-->>
+                XInput (Xbox Controller)
+            </label>
+        </fieldset>
+
+        <button type="submit">Save Settings</button>
+    </form>
+</body>
+</html>
