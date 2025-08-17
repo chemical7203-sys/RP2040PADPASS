@@ -1,8 +1,12 @@
+// Pico SDK Headers
 #include "pico/stdlib.h"
 #include "bsp/board.h"
-#include "tusb.h"
 #include "hardware/uart.h"
 
+// TinyUSB Headers
+#include "tusb.h"
+
+// lwIP Headers
 #include "lwip/init.h"
 #include "lwip/timeouts.h"
 #include "lwip/dhcp.h"
@@ -11,6 +15,7 @@
 #include "lwip/tcpip.h"
 #include "lwip/apps/httpd.h"
 
+// Project-specific Headers
 #include "common/protocol.h"
 
 // --- Config Struct ---
