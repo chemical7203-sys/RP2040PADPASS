@@ -33,10 +33,11 @@ target_link_libraries(ds4_to_gamepad PRIVATE
     pico_lwip
 )
 
-# Add include paths for our local headers (`src` contains protocol.h, etc.) and for the lwIP port
+# Add include paths for our local headers, the lwIP port, and lwIP apps
 target_include_directories(ds4_to_gamepad PRIVATE
     src
     ${PICO_SDK_PATH}/src/rp2_common/pico_lwip/include
+    ${PICO_SDK_PATH}/lib/lwip/src/apps
 )
 
 # Add compile definitions needed for our configuration
