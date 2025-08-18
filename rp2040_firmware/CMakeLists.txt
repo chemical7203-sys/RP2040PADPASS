@@ -1,7 +1,7 @@
 # This file is based on the structure of the official pico-examples and tinyusb examples
 
-# --- Define paths to the networking example files within the SDK ---
-set(TINYUSB_NET_EXAMPLE_PATH ${PICO_SDK_PATH}/lib/tinyusb/examples/device/net/net_lwip_webserver/src)
+# --- Define paths to the networking library files within the SDK ---
+set(TINYUSB_NET_LIB_PATH ${PICO_SDK_PATH}/lib/tinyusb/lib/networking)
 set(FSDATA_C ${CMAKE_CURRENT_BINARY_DIR}/fsdata.c)
 
 # --- Custom command to generate the web filesystem ---
@@ -27,10 +27,9 @@ add_executable(ds4_to_gamepad
     # Generated web filesystem
     ${FSDATA_C}
 
-    # Source files for DHCP and DNS servers from the TinyUSB example
-    ${TINYUSB_NET_EXAMPLE_PATH}/dhserver.c
-    ${TINYUSB_NET_EXAMPLE_PATH}/dnserver.c
-    ${TINYUSB_NET_EXAMPLE_PATH}/lwip_hooks.c
+    # Source files for DHCP and DNS servers from the TinyUSB library
+    ${TINYUSB_NET_LIB_PATH}/dhserver.c
+    ${TINYUSB_NET_LIB_PATH}/dnserver.c
 )
 
 # --- Link Libraries ---
@@ -46,8 +45,8 @@ target_link_libraries(ds4_to_gamepad PRIVATE
 target_include_directories(ds4_to_gamepad PRIVATE
     # Local headers in our src folder
     src
-    # Include path for the networking example headers (dhserver.h, etc.)
-    ${TINYUSB_NET_EXAMPLE_PATH}
+    # Include path for the networking library headers (dhserver.h, etc.)
+    ${TINYUSB_NET_LIB_PATH}
 )
 
 # --- Compile Definitions ---
