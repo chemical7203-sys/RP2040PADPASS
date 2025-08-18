@@ -16,7 +16,6 @@
 #define LWIP_ICMP                       1
 #define LWIP_DHCP                       1
 #define LWIP_DNS                        1
-#define LWIP_DHCP_SERVER                1
 
 // TCP options
 #define TCP_MSS                         1460

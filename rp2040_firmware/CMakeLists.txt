@@ -1,14 +1,16 @@
-# This file is based on the structure of the official pico-examples
+# This file is based on the structure of the official pico-examples and tinyusb examples
 
-# --- Filesystem Generation ---
-# Add a custom command to run the Python script to convert the HTML to a C file.
+# --- Define paths to the networking example files within the SDK ---
+set(TINYUSB_NET_EXAMPLE_PATH ${PICO_SDK_PATH}/lib/tinyusb/examples/device/net/net_lwip_webserver/src)
 set(FSDATA_C ${CMAKE_CURRENT_BINARY_DIR}/fsdata.c)
+
+# --- Custom command to generate the web filesystem ---
 add_custom_command(
     OUTPUT ${FSDATA_C}
     COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/pc_app/build_fs.py
     DEPENDS ${CMAKE_SOURCE_DIR}/rp2040_firmware/src/html/config.html
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Generating ${FSDATA_C} from config.html"
+    COMMENT "Generating web filesystem from HTML"
 )
 
 add_custom_target(
@@ -18,35 +20,44 @@ add_custom_target(
 
 # --- Main Executable Target ---
 add_executable(ds4_to_gamepad
+    # Project-specific source files
     src/main.c
     src/usb_descriptors.c
+
+    # Generated web filesystem
     ${FSDATA_C}
+
+    # Source files for DHCP and DNS servers from the TinyUSB example
+    ${TINYUSB_NET_EXAMPLE_PATH}/dhserver.c
+    ${TINYUSB_NET_EXAMPLE_PATH}/dnserver.c
+    ${TINYUSB_NET_EXAMPLE_PATH}/lwip_hooks.c
 )
 
-# Link all necessary libraries to the target
+# --- Link Libraries ---
 target_link_libraries(ds4_to_gamepad PRIVATE
     pico_stdlib
+    pico_cyw43_arch_lwip_threadsafe_background
     tinyusb_device
     tinyusb_board
     hardware_uart
-    tinyusb_networking
-    pico_lwip
 )
 
-# Add include paths for our local headers, the lwIP port, and lwIP apps
+# --- Include Directories ---
 target_include_directories(ds4_to_gamepad PRIVATE
+    # Local headers in our src folder
     src
-    ${PICO_SDK_PATH}/src/rp2_common/pico_lwip/include
-    ${PICO_SDK_PATH}/lib/lwip/src/apps
+    # Include path for the networking example headers (dhserver.h, etc.)
+    ${TINYUSB_NET_EXAMPLE_PATH}
 )
 
-# Add compile definitions needed for our configuration
+# --- Compile Definitions ---
 target_compile_definitions(ds4_to_gamepad PRIVATE
     TUD_NET_RNDIS=1
 )
 
-# Ensure our fsdata file is generated before we try to build the executable
+# --- Build Dependencies ---
+# Ensure fsdata is generated before the main executable is built
 add_dependencies(ds4_to_gamepad fsdata_generator)
 
-# Create the .uf2 file and other outputs
+# --- Final Outputs ---
 pico_add_extra_outputs(ds4_to_gamepad)
