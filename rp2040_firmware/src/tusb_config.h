@@ -14,12 +14,12 @@
 
 //------------- CLASS -------------//
 #define CFG_TUD_HID                 1
-#define CFG_TUD_NET                 1
+#define CFG_TUD_ECM_RNDIS           1 // Use the new combined macro for RNDIS
 
 // HID buffer size
 #define CFG_TUD_HID_EP_BUFSIZE      64
 
 // Net buffer size
-#define CFG_TUD_NET_BUFSIZE         (TUD_NET_MTU + 20) // MTU + RNDIS/Ethernet header
+#define CFG_TUD_NET_BUFSIZE         (TUD_NET_MTU + 20)
 
 #endif /* TUSB_CONFIG_H */

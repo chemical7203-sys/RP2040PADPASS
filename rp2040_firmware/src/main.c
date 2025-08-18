@@ -1,16 +1,12 @@
-/*
- * Copyright (c) 2023, The Raspberry Pi Pico Project
- *
- * SPDX-License-Identifier: BSD-3-Clause
- */
-
+/* Pico SDK Headers */
 #include "pico/stdlib.h"
-#include "pico/cyw43_arch.h"
 #include "bsp/board.h"
 #include "hardware/uart.h"
 
+/* TinyUSB Headers */
 #include "tusb.h"
 
+/* lwIP Headers */
 #include "lwip/init.h"
 #include "lwip/timeouts.h"
 #include "lwip/etharp.h"
@@ -19,25 +15,31 @@
 #include "dhserver.h"
 #include "dnserver.h"
 
+/* Project-specific Headers */
 #include "protocol.h"
 
-// --- TYPE DEFINITIONS AND GLOBAL VARIABLES ---
+/* --- TYPE DEFINITIONS AND FORWARD DECLARATIONS --- */
 
 // Web server configuration state
 typedef struct {
     bool invert_lx, invert_ly, invert_rx, invert_ry;
     uint8_t deadzone_l2, deadzone_r2;
-    uint8_t pad_type; // 0: Generic/DS4, 1: Switch, 2: XInput
+    uint8_t pad_type;
 } GamepadConfig;
+
+// Function Prototypes
+void hid_task(void);
+void uart_task(void);
+void service_traffic(void);
+bool dns_query_proc(const char *name, ip4_addr_t *addr);
+u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen);
+const char * cgi_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
+err_t netif_init_fn(struct netif *netif);
+
+/* --- GLOBAL VARIABLES --- */
+
 volatile GamepadConfig g_config = { .pad_type = 0, .deadzone_l2 = 10, .deadzone_r2 = 10 };
-
-// UART configuration and state
-#define UART_INSTANCE uart0
-#define UART_TX_PIN 0
-#define UART_RX_PIN 1
 volatile DS4InputData latest_ds4_data = {0};
-
-// Network state
 static struct netif netif_data;
 
 // DHCP server entries
@@ -55,21 +57,15 @@ static const dhcp_config_t dhcp_config = {
 
 // Web server resources
 const char *ssi_tags[] = { "inversion_lx", "inversion_ly", "inversion_rx", "inversion_ry", "deadzone_l2", "deadzone_r2", "type_ds4", "type_switch", "type_xinput" };
-const char * cgi_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 const tCGI cgi_handlers[] = { {"/config.cgi", cgi_handler} };
-u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen);
 
-// --- MAIN APPLICATION ---
+/* --- MAIN APPLICATION --- */
 
 int main(void) {
     board_init();
-    uart_init(UART_INSTANCE, BAUDRATE);
-    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-
-    // Initialize networking stack and servers
-    // This is a blocking call until the network is up
-    cyw43_arch_init();
+    uart_init(uart0, BAUDRATE); // Use uart0 directly
+    gpio_set_function(0, GPIO_FUNC_UART);
+    gpio_set_function(1, GPIO_FUNC_UART);
 
     tusb_init();
 
@@ -82,45 +78,21 @@ int main(void) {
 
     while (1) {
         tud_task();
-        cyw43_arch_poll();
+        service_traffic();
         uart_task();
         hid_task();
     }
     return 0;
 }
 
-// --- TASKS ---
-void uart_task(void) { /* ... same as before ... */ }
-void hid_task(void) { /* ... same as before ... */ }
+/* --- TASKS --- */
 
-// --- WEB SERVER HANDLERS ---
-const char * cgi_handler(int i, int n, char *p[], char *v[]) { /* ... same as before ... */ return "/config.html"; }
-u16_t ssi_handler(int i, char *p, int l) { /* ... same as before ... */ return 0; }
-
-// --- NETWORK CALLBACKS & FUNCTIONS ---
-
-uint32_t sys_now(void) { return board_millis(); }
-void tud_network_init_cb(void) {
-  ip4_addr_t ip, netmask, gw;
-  IP4_ADDR(&ip, 192, 168, 7, 1);
-  IP4_ADDR(&netmask, 255, 255, 255, 0);
-  IP4_ADDR(&gw, 0, 0, 0, 0);
-
-  netif_add(&netif_data, &ip, &netmask, &gw, NULL, netif_init, ip_input);
-  netif_set_default(&netif_data);
-  netif_set_up(&netif_data);
-}
-void tud_network_recv_cb(const uint8_t *dst, uint16_t len) { /* ... */ tud_network_recv_renew(); }
-uint16_t tud_network_xmit_cb(uint8_t *dst, void *ref, uint16_t arg) { return 0; }
-bool dns_query_proc(const char *name, ip4_addr_t *addr) { /* ... */ return false; }
-
-// --- FULL IMPLEMENTATIONS TO AVOID "..." ---
 void uart_task(void) {
     static SerialPacket packet_buffer;
     static uint8_t buffer_pos = 0;
     static enum { WAITING_FOR_START, RECEIVING_DATA, RECEIVING_CHECKSUM } state = WAITING_FOR_START;
-    while (uart_is_readable(UART_INSTANCE)) {
-        uint8_t byte = uart_getc(UART_INSTANCE);
+    while (uart_is_readable(uart0)) {
+        uint8_t byte = uart_getc(uart0);
         switch (state) {
             case WAITING_FOR_START: if (byte == START_BYTE) { buffer_pos = 1; state = RECEIVING_DATA; } break;
             case RECEIVING_DATA: ((uint8_t*)&packet_buffer)[buffer_pos++] = byte; if (buffer_pos >= sizeof(SerialPacket) - 1) { state = RECEIVING_CHECKSUM; } break;
@@ -138,21 +110,27 @@ void uart_task(void) {
         }
     }
 }
+
 void pack_switch_report(hid_switch_report_t report, const DS4InputData* data);
+
 void hid_task(void) {
     const uint32_t interval_ms = 1;
     static uint32_t start_ms = 0;
     if (board_millis() - start_ms < interval_ms) return;
     start_ms += interval_ms;
+
     if (tud_suspended() || !tud_hid_ready()) return;
+
     DS4InputData data;
     uint32_t status = save_and_disable_interrupts();
     data = latest_ds4_data;
     restore_interrupts(status);
+
     data.left_stick_x = g_config.invert_lx ? 255 - data.left_stick_x : data.left_stick_x;
     data.left_stick_y = g_config.invert_ly ? 255 - data.left_stick_y : data.left_stick_y;
     data.right_stick_x = g_config.invert_rx ? 255 - data.right_stick_x : data.right_stick_x;
     data.right_stick_y = g_config.invert_ry ? 255 - data.right_stick_y : data.right_stick_y;
+
     switch (g_config.pad_type) {
         case 1: {
             hid_switch_report_t report;
@@ -171,6 +149,61 @@ void hid_task(void) {
         }
     }
 }
+
+/* --- NETWORK INITIALIZATION AND CALLBACKS --- */
+
+uint32_t sys_now(void) { return board_millis(); }
+err_t linkoutput_fn(struct netif *netif, struct pbuf *p) { (void)netif; tud_network_xmit(p, 0); return ERR_OK; }
+err_t ip4_output_fn(struct netif *netif, struct pbuf *p, const ip4_addr_t *addr) { return etharp_output(netif, p, addr); }
+err_t netif_init_fn(struct netif *netif) {
+  netif->mtu = CFG_TUD_NET_MTU;
+  netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP | NETIF_FLAG_UP;
+  netif->state = NULL; netif->name[0] = 'E'; netif->name[1] = 'X';
+  netif->linkoutput = linkoutput_fn; netif->output = ip4_output_fn;
+  return ERR_OK;
+}
+
+void tud_network_init_cb(void) {
+  ip4_addr_t ip, netmask, gw;
+  IP4_ADDR(&ip, 192, 168, 7, 1);
+  IP4_ADDR(&netmask, 255, 255, 255, 0);
+  IP4_ADDR(&gw, 0, 0, 0, 0);
+
+  lwip_init();
+  netif_add(&netif_data, &ip, &netmask, &gw, NULL, netif_init_fn, ip_input);
+  netif_set_default(&netif_data);
+  netif_set_up(&netif_data);
+}
+
+void service_traffic(void) { sys_check_timeouts(); }
+
+bool tud_network_recv_cb(const uint8_t *dst, uint16_t len) {
+  struct pbuf *p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
+  if (p) {
+    memcpy(p->payload, dst, len);
+    if (ethernet_input(p, &netif_data) != ERR_OK) {
+      pbuf_free(p);
+    }
+  }
+  tud_network_recv_renew();
+  return true; // Return bool as per function signature
+}
+
+uint16_t tud_network_xmit_cb(uint8_t *dst, void *ref, uint16_t arg) {
+  struct pbuf *p = (struct pbuf *)ref;
+  return pbuf_copy_partial(p, dst, p->tot_len, 0);
+}
+
+bool dns_query_proc(const char *name, ip4_addr_t *addr) {
+  if (0 == strcmp(name, "gp2040.config")) {
+    *addr = *netif_ip4_addr(&netif_data);
+    return true;
+  }
+  return false;
+}
+
+/* --- WEB SERVER HANDLERS --- */
+
 const char * cgi_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
     if (iIndex == 0) {
         g_config.invert_lx = g_config.invert_ly = g_config.invert_rx = g_config.invert_ry = false;
@@ -190,6 +223,7 @@ const char * cgi_handler(int iIndex, int iNumParams, char *pcParam[], char *pcVa
     }
     return "/config.html";
 }
+
 u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
     switch (iIndex) {
         case 0: if (g_config.invert_lx) return snprintf(pcInsert, iInsertLen, "checked"); break;
@@ -204,6 +238,7 @@ u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
     }
     return 0;
 }
+
 void pack_switch_report(hid_switch_report_t report, const DS4InputData* data) {
     memset(report, 0, SWITCH_REPORT_SIZE);
     uint16_t buttons = 0;
@@ -232,26 +267,7 @@ void pack_switch_report(hid_switch_report_t report, const DS4InputData* data) {
     report[7] = ((rx >> 8) & 0x0F) | ((ry & 0x0F) << 4);
     report[8] = (ry >> 4) & 0xFF;
 }
-void tud_network_recv_cb(const uint8_t *dst, uint16_t len) {
-  struct pbuf *p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
-  if (p) {
-    memcpy(p->payload, dst, len);
-    if (ethernet_input(p, &netif_data) != ERR_OK) {
-      pbuf_free(p);
-    }
-  }
-  tud_network_recv_renew();
-}
-uint16_t tud_network_xmit_cb(uint8_t *dst, void *ref, uint16_t arg) {
-  struct pbuf *p = (struct pbuf *)ref;
-  return pbuf_copy_partial(p, dst, p->tot_len, 0);
-}
-bool dns_query_proc(const char *name, ip4_addr_t *addr) {
-  if (0 == strcmp(name, "gp2040.config")) {
-    *addr = *netif_ip4_addr(&netif_data);
-    return true;
-  }
-  return false;
-}
+
+// Stubs for unused callbacks that are part of the HID API
 uint16_t tud_hid_get_report_cb(uint8_t i, uint8_t r_id, hid_report_type_t rt, uint8_t* b, uint16_t rl) { return 0; }
 void tud_hid_set_report_cb(uint8_t i, uint8_t r_id, hid_report_type_t rt, uint8_t const* b, uint16_t bl) {}

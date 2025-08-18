@@ -31,7 +31,7 @@
 #define HTTPD_FSDATA_FILE               "html/fsdata.c" // We will create this later
 
 // Platform-specific options
-#define LWIP_RAND()                     ((u32_t)rand())
+// #define LWIP_RAND()                     ((u32_t)rand()) // This is defined by the SDK's port
 
 // Checksum options - delegate to hardware if possible
 #define CHECKSUM_GEN_IP                 0

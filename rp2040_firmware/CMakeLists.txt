@@ -35,7 +35,7 @@ add_executable(ds4_to_gamepad
 # --- Link Libraries ---
 target_link_libraries(ds4_to_gamepad PRIVATE
     pico_stdlib
-    pico_cyw43_arch_lwip_threadsafe_background
+    pico_lwip
     tinyusb_device
     tinyusb_board
     hardware_uart
@@ -47,8 +47,8 @@ target_include_directories(ds4_to_gamepad PRIVATE
     src
     # Include path for the networking library headers (dhserver.h, etc.)
     ${TINYUSB_NET_LIB_PATH}
-    # Include path for cyw43 architecture support
-    ${PICO_SDK_PATH}/src/rp2_common/pico_cyw43_arch/include
+    # Include path for cyw43 architecture support - NOT NEEDED FOR USB NET
+    # ${PICO_SDK_PATH}/src/rp2_common/pico_cyw43_arch/include
 )
 
 # --- Compile Definitions ---
