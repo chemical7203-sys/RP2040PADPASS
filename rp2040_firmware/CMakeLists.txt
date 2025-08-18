@@ -47,8 +47,6 @@ target_include_directories(ds4_to_gamepad PRIVATE
     src
     # Include path for the networking library headers (dhserver.h, etc.)
     ${TINYUSB_NET_LIB_PATH}
-    # Include path for cyw43 architecture support - NOT NEEDED FOR USB NET
-    # ${PICO_SDK_PATH}/src/rp2_common/pico_cyw43_arch/include
 )
 
 # --- Compile Definitions ---

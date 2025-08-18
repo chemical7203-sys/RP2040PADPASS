@@ -14,7 +14,7 @@
 
 //------------- CLASS -------------//
 #define CFG_TUD_HID                 1
-#define CFG_TUD_ECM_RNDIS           1 // Use the new combined macro for RNDIS
+#define CFG_TUD_ECM_RNDIS           1
 
 // HID buffer size
 #define CFG_TUD_HID_EP_BUFSIZE      64

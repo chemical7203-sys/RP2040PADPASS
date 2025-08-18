@@ -6,7 +6,7 @@
 /* TinyUSB Headers */
 #include "tusb.h"
 
-/* lwIP Headers */
+/* lwIP and Server Headers */
 #include "lwip/init.h"
 #include "lwip/timeouts.h"
 #include "lwip/etharp.h"
@@ -20,14 +20,12 @@
 
 /* --- TYPE DEFINITIONS AND FORWARD DECLARATIONS --- */
 
-// Web server configuration state
 typedef struct {
     bool invert_lx, invert_ly, invert_rx, invert_ry;
     uint8_t deadzone_l2, deadzone_r2;
     uint8_t pad_type;
 } GamepadConfig;
 
-// Function Prototypes
 void hid_task(void);
 void uart_task(void);
 void service_traffic(void);
@@ -35,6 +33,7 @@ bool dns_query_proc(const char *name, ip4_addr_t *addr);
 u16_t ssi_handler(int iIndex, char *pcInsert, int iInsertLen);
 const char * cgi_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]);
 err_t netif_init_fn(struct netif *netif);
+void pack_switch_report(hid_switch_report_t report, const DS4InputData* data);
 
 /* --- GLOBAL VARIABLES --- */
 
@@ -42,20 +41,14 @@ volatile GamepadConfig g_config = { .pad_type = 0, .deadzone_l2 = 10, .deadzone_
 volatile DS4InputData latest_ds4_data = {0};
 static struct netif netif_data;
 
-// DHCP server entries
 static dhcp_entry_t dhcp_entries[] = {
     { {0}, IPADDR4_INIT_BYTES(192, 168, 7, 2), 24 * 60 * 60 },
 };
 static const dhcp_config_t dhcp_config = {
-    .router = IPADDR4_INIT_BYTES(0, 0, 0, 0),
-    .port = 67,
-    .dns = IPADDR4_INIT_BYTES(192, 168, 7, 1),
-    .domain = "usb",
-    .num_entry = TU_ARRAY_SIZE(dhcp_entries),
-    .entries = dhcp_entries
+    .router = IPADDR4_INIT_BYTES(0, 0, 0, 0), .port = 67, .dns = IPADDR4_INIT_BYTES(192, 168, 7, 1),
+    .domain = "usb", .num_entry = TU_ARRAY_SIZE(dhcp_entries), .entries = dhcp_entries
 };
 
-// Web server resources
 const char *ssi_tags[] = { "inversion_lx", "inversion_ly", "inversion_rx", "inversion_ry", "deadzone_l2", "deadzone_r2", "type_ds4", "type_switch", "type_xinput" };
 const tCGI cgi_handlers[] = { {"/config.cgi", cgi_handler} };
 
@@ -63,18 +56,11 @@ const tCGI cgi_handlers[] = { {"/config.cgi", cgi_handler} };
 
 int main(void) {
     board_init();
-    uart_init(uart0, BAUDRATE); // Use uart0 directly
+    uart_init(uart0, BAUDRATE);
     gpio_set_function(0, GPIO_FUNC_UART);
     gpio_set_function(1, GPIO_FUNC_UART);
 
     tusb_init();
-
-    while (!netif_is_up(&netif_data));
-    while (dhserv_init(&dhcp_config) != ERR_OK);
-    while (dnserv_init(IP_ADDR_ANY, 53, dns_query_proc) != ERR_OK);
-    httpd_init();
-    http_set_ssi_handler(ssi_handler, ssi_tags, LWIP_ARRAYSIZE(ssi_tags));
-    http_set_cgi_handlers(cgi_handlers, LWIP_ARRAYSIZE(cgi_handlers));
 
     while (1) {
         tud_task();
@@ -85,7 +71,7 @@ int main(void) {
     return 0;
 }
 
-/* --- TASKS --- */
+/* --- CORE TASKS --- */
 
 void uart_task(void) {
     static SerialPacket packet_buffer;
@@ -110,8 +96,6 @@ void uart_task(void) {
         }
     }
 }
-
-void pack_switch_report(hid_switch_report_t report, const DS4InputData* data);
 
 void hid_task(void) {
     const uint32_t interval_ms = 1;
@@ -186,7 +170,7 @@ bool tud_network_recv_cb(const uint8_t *dst, uint16_t len) {
     }
   }
   tud_network_recv_renew();
-  return true; // Return bool as per function signature
+  return true;
 }
 
 uint16_t tud_network_xmit_cb(uint8_t *dst, void *ref, uint16_t arg) {
@@ -268,6 +252,5 @@ void pack_switch_report(hid_switch_report_t report, const DS4InputData* data) {
     report[8] = (ry >> 4) & 0xFF;
 }
 
-// Stubs for unused callbacks that are part of the HID API
 uint16_t tud_hid_get_report_cb(uint8_t i, uint8_t r_id, hid_report_type_t rt, uint8_t* b, uint16_t rl) { return 0; }
 void tud_hid_set_report_cb(uint8_t i, uint8_t r_id, hid_report_type_t rt, uint8_t const* b, uint16_t bl) {}
